@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet'
-import { type LatLngExpression, Icon, divIcon } from 'leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, GeoJSON, useMap } from 'react-leaflet'
+import { type LatLngExpression, divIcon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { vessels, fishingZones, type Vessel } from '@/lib/mock-data'
+import { vessels, fishingZones, guatemalaZEE, ports, type Vessel } from '@/lib/mock-data'
 
 // Custom ship icon
 const createShipIcon = (status: string) => {
@@ -41,14 +41,41 @@ const createShipIcon = (status: string) => {
   })
 }
 
+// Port icon
+const portIcon = divIcon({
+  html: `<div style="
+    width: 28px;
+    height: 28px;
+    background: #3b82f6;
+    border-radius: 4px;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  ">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+      <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3Z"/>
+      <path d="M6 17v4"/>
+      <path d="M18 17v4"/>
+    </svg>
+  </div>`,
+  className: '',
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+})
+
 interface FleetMapProps {
   selectedVessel?: Vessel | null
   onSelectVessel?: (vessel: Vessel) => void
   showZones?: boolean
   showRoutes?: boolean
+  showZEE?: boolean
+  showPorts?: boolean
   height?: string
   center?: [number, number]
   zoom?: number
+  region?: 'pacific' | 'caribbean' | 'general'
 }
 
 function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
@@ -63,14 +90,24 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
   return null
 }
 
+// Default centers for Guatemala regions
+const regionCenters = {
+  pacific: { center: [13.5, -91.5] as [number, number], zoom: 7 },
+  caribbean: { center: [15.7, -88.5] as [number, number], zoom: 7 },
+  general: { center: [14.0, -90.5] as [number, number], zoom: 6 },
+}
+
 export function FleetMap({
   selectedVessel,
   onSelectVessel,
   showZones = false,
   showRoutes = true,
+  showZEE = true,
+  showPorts = true,
   height = '400px',
-  center = [-3.5, -81.5],
-  zoom = 7
+  center,
+  zoom,
+  region = 'pacific'
 }: FleetMapProps) {
   const [mounted, setMounted] = useState(false)
 
@@ -78,10 +115,14 @@ export function FleetMap({
     setMounted(true)
   }, [])
 
+  const defaultConfig = regionCenters[region]
+  const mapCenter = center || defaultConfig.center
+  const mapZoom = zoom || defaultConfig.zoom
+
   if (!mounted) {
     return (
       <div 
-        className="bg-muted rounded-lg flex items-center justify-center"
+        className="bg-muted rounded-xl flex items-center justify-center w-full h-[300px] md:h-[500px]"
         style={{ height }}
       >
         <div className="text-muted-foreground">Cargando mapa...</div>
@@ -89,19 +130,62 @@ export function FleetMap({
     )
   }
 
+  // ZEE style
+  const zeeStyle = {
+    color: '#00d4aa',
+    weight: 2,
+    opacity: 0.8,
+    fillColor: '#00d4aa',
+    fillOpacity: 0.15,
+  }
+
   return (
     <MapContainer
-      center={center as LatLngExpression}
-      zoom={zoom}
-      style={{ height, width: '100%', borderRadius: '0.5rem' }}
-      className="z-0"
+      center={mapCenter as LatLngExpression}
+      zoom={mapZoom}
+      style={{ height, width: '100%' }}
+      className="z-0 rounded-xl overflow-hidden w-full"
     >
-      <MapController center={selectedVessel ? [selectedVessel.position.lat, selectedVessel.position.lng] as [number, number] : center} zoom={selectedVessel ? 10 : zoom} />
+      <MapController 
+        center={selectedVessel ? [selectedVessel.position.lat, selectedVessel.position.lng] as [number, number] : mapCenter} 
+        zoom={selectedVessel ? 10 : mapZoom} 
+      />
       
+      {/* Dark ocean tiles */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://carto.com">CARTO</a>'
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
+
+      {/* Guatemala ZEE - Pacific */}
+      {showZEE && (
+        <>
+          <GeoJSON 
+            data={guatemalaZEE.pacific as GeoJSON.Feature} 
+            style={zeeStyle}
+          />
+          <GeoJSON 
+            data={guatemalaZEE.caribbean as GeoJSON.Feature} 
+            style={zeeStyle}
+          />
+        </>
+      )}
+
+      {/* Ports */}
+      {showPorts && Object.values(ports).map((port) => (
+        <Marker
+          key={port.name}
+          position={[port.lat, port.lng] as LatLngExpression}
+          icon={portIcon}
+        >
+          <Popup>
+            <div className="text-sm min-w-[120px]">
+              <p className="font-semibold">{port.name}</p>
+              <p className="text-muted-foreground text-xs">Puerto base</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
 
       {/* Fishing zones */}
       {showZones && fishingZones.map((zone) => (
@@ -155,6 +239,7 @@ export function FleetMap({
               <p className="font-semibold text-foreground">{vessel.name}</p>
               <p className="text-muted-foreground">Capitán: {vessel.captain}</p>
               <p className="text-muted-foreground">Velocidad: {vessel.speed} nudos</p>
+              <p className="text-muted-foreground">Puerto: {vessel.port}</p>
               <p className="text-muted-foreground">Estado: {vessel.status}</p>
             </div>
           </Popup>

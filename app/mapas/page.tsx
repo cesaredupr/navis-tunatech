@@ -13,15 +13,16 @@ import {
   Route,
   TrendingUp,
   MapPin,
-  Zap
+  Zap,
+  Anchor
 } from 'lucide-react'
-import { fishingZones, heatmapPoints } from '@/lib/mock-data'
+import { fishingZones, optimalRoute, ports } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 const HeatmapMap = dynamic(() => import('@/components/heatmap-map').then(mod => mod.HeatmapMap), {
   ssr: false,
   loading: () => (
-    <div className="h-[500px] bg-muted rounded-lg flex items-center justify-center">
+    <div className="h-[300px] md:h-[500px] bg-muted rounded-xl flex items-center justify-center w-full">
       <span className="text-muted-foreground">Cargando mapa de calor...</span>
     </div>
   ),
@@ -35,34 +36,23 @@ const dateFilters = [
 ]
 
 const zoneFilters = [
-  { id: 'all', label: 'Todas las zonas' },
-  { id: 'north', label: 'Zona Norte' },
-  { id: 'central', label: 'Zona Central' },
-  { id: 'south', label: 'Zona Sur' },
+  { id: 'all', label: 'Todas' },
+  { id: 'pacific', label: 'Pacífico Guatemalteco' },
+  { id: 'caribbean', label: 'Mar Caribe' },
+  { id: 'zee', label: 'ZEE Guatemala' },
 ]
 
 export default function MapasPage() {
   const [selectedDate, setSelectedDate] = useState('week')
   const [selectedZone, setSelectedZone] = useState('all')
   const [showRouteOptimization, setShowRouteOptimization] = useState(false)
-  const [optimizedRoute, setOptimizedRoute] = useState<{ lat: number; lng: number }[] | null>(null)
 
   const handleOptimizeRoute = () => {
     setShowRouteOptimization(true)
-    // Simulate route optimization with top fishing zones
-    const topZones = fishingZones
-      .sort((a, b) => b.probability - a.probability)
-      .slice(0, 3)
-    
-    setOptimizedRoute([
-      { lat: -2.19, lng: -79.89 }, // Starting port
-      ...topZones.map(z => z.center),
-      { lat: -2.19, lng: -79.89 }, // Return to port
-    ])
   }
 
   return (
-    <DashboardLayout title="Mapas Inteligentes" subtitle="Análisis de zonas de pesca y rutas óptimas">
+    <DashboardLayout title="Mapas Inteligentes" subtitle="Zona Económica Exclusiva de Guatemala - Análisis de pesca">
       <div className="space-y-6">
         {/* Filters */}
         <Card className="bg-card border-border">
@@ -70,7 +60,7 @@ export default function MapasPage() {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Período:</span>
+                <span className="text-sm text-muted-foreground hidden sm:inline">Período:</span>
                 <div className="flex gap-1">
                   {dateFilters.map((filter) => (
                     <Button
@@ -93,8 +83,8 @@ export default function MapasPage() {
 
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Zona:</span>
-                <div className="flex gap-1">
+                <span className="text-sm text-muted-foreground hidden sm:inline">Zona:</span>
+                <div className="flex gap-1 flex-wrap">
                   {zoneFilters.map((filter) => (
                     <Button
                       key={filter.id}
@@ -132,29 +122,29 @@ export default function MapasPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Map className="h-5 w-5 text-primary" />
-                Mapa de Calor - Actividad de Pesca
+                Mapa de Calor - Pacífico Guatemalteco
               </CardTitle>
             </CardHeader>
             <CardContent>
               <HeatmapMap 
                 height="500px" 
                 showRoute={showRouteOptimization}
-                optimizedRoute={optimizedRoute}
+                optimizedRoute={showRouteOptimization ? optimalRoute : null}
               />
               
               {/* Legend */}
-              <div className="flex items-center justify-center gap-4 mt-4">
+              <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
                 <span className="text-xs text-muted-foreground">Probabilidad de captura:</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded bg-success/30" />
+                  <div className="w-4 h-4 rounded" style={{ background: '#00d4ff' }} />
                   <span className="text-xs text-muted-foreground">Baja</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded bg-success/60" />
+                  <div className="w-4 h-4 rounded" style={{ background: '#00d4aa' }} />
                   <span className="text-xs text-muted-foreground">Media</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded bg-success" />
+                  <div className="w-4 h-4 rounded" style={{ background: '#ff4444' }} />
                   <span className="text-xs text-muted-foreground">Alta</span>
                 </div>
               </div>
@@ -213,7 +203,7 @@ export default function MapasPage() {
             </Card>
 
             {/* Optimized Route Info */}
-            {showRouteOptimization && optimizedRoute && (
+            {showRouteOptimization && (
               <Card className="bg-card border-border border-accent/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2 text-accent">
@@ -223,26 +213,35 @@ export default function MapasPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Ruta sugerida basada en probabilidades de captura actuales
+                    Ruta desde Puerto Quetzal hacia zonas de alta probabilidad en el Pacífico Guatemalteco
                   </p>
                   
                   <div className="space-y-2">
-                    {optimizedRoute.map((point, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className={cn(
-                          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-                          index === 0 || index === optimizedRoute.length - 1
-                            ? 'bg-info/20 text-info'
-                            : 'bg-success/20 text-success'
-                        )}>
-                          {index === 0 ? 'P' : index === optimizedRoute.length - 1 ? 'P' : index}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-info/20 text-info flex items-center justify-center">
+                        <Anchor className="h-3 w-3" />
+                      </div>
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-foreground">Puerto Quetzal</span>
+                    </div>
+                    
+                    {fishingZones.slice(0, 3).map((zone, index) => (
+                      <div key={zone.id} className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-success/20 text-success flex items-center justify-center text-xs font-bold">
+                          {index + 1}
                         </div>
                         <div className="flex-1 h-px bg-border" />
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {point.lat.toFixed(2)}°, {point.lng.toFixed(2)}°
-                        </span>
+                        <span className="text-xs text-foreground">{zone.name}</span>
                       </div>
                     ))}
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-info/20 text-info flex items-center justify-center">
+                        <Anchor className="h-3 w-3" />
+                      </div>
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-foreground">Regreso a Puerto</span>
+                    </div>
                   </div>
 
                   <div className="p-3 rounded-lg bg-accent/10 border border-accent/30">
@@ -253,15 +252,15 @@ export default function MapasPage() {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-muted-foreground">Distancia:</span>
-                        <span className="text-foreground ml-1">~185 km</span>
+                        <span className="text-foreground ml-1">~120 mn</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Tiempo:</span>
-                        <span className="text-foreground ml-1">~14 horas</span>
+                        <span className="text-foreground ml-1">~18 horas</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Combustible:</span>
-                        <span className="text-foreground ml-1">~45%</span>
+                        <span className="text-foreground ml-1">~55%</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Eficiencia:</span>

@@ -64,7 +64,7 @@ export default function ClimaPage() {
 
   useEffect(() => {
     const updateTime = () => {
-      setCurrentTime(new Date().toLocaleString('es-EC', {
+      setCurrentTime(new Date().toLocaleString('es-GT', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -78,7 +78,7 @@ export default function ClimaPage() {
   }, [])
 
   return (
-    <DashboardLayout title="Condiciones Climáticas" subtitle="Datos meteorológicos y pronóstico">
+    <DashboardLayout title="Condiciones Climáticas" subtitle="Costa del Pacífico de Guatemala">
       <div className="space-y-6">
         {/* Current Weather Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -93,7 +93,7 @@ export default function ClimaPage() {
                     <span className="text-2xl text-muted-foreground">°C</span>
                   </div>
                   <p className="text-lg text-foreground mt-1">{weatherData.forecast[0].condition}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Región del Pacífico Ecuatoriano</p>
+                  <p className="text-sm text-muted-foreground mt-2">Pacífico Guatemalteco</p>
                 </div>
                 <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
                   <CloudSun className="h-12 w-12 text-primary" />

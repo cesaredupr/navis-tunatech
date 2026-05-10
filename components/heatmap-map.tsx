@@ -1,10 +1,56 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Polyline, Marker, Popup } from 'react-leaflet'
+import { useEffect, useState, useRef } from 'react'
+import { MapContainer, TileLayer, Polyline, Marker, Popup, GeoJSON, useMap } from 'react-leaflet'
 import { type LatLngExpression, divIcon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { fishingZones, heatmapPoints } from '@/lib/mock-data'
+import { fishingZones, guatemalaZEE, ports, heatmapPoints, optimalRoute } from '@/lib/mock-data'
+
+// Heatmap layer component
+function HeatmapLayer({ points }: { points: [number, number, number][] }) {
+  const map = useMap()
+  const heatLayerRef = useRef<L.HeatLayer | null>(null)
+
+  useEffect(() => {
+    const loadHeatmap = async () => {
+      // Dynamically import leaflet.heat
+      const L = await import('leaflet')
+      await import('leaflet.heat')
+      
+      // Remove existing layer if any
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current)
+      }
+
+      // Create heatmap layer with Guatemala-specific gradient
+      // @ts-expect-error - leaflet.heat extends L
+      const heat = L.heatLayer(points, {
+        radius: 35,
+        blur: 25,
+        maxZoom: 10,
+        max: 1.0,
+        gradient: {
+          0.4: '#00d4ff',  // Cyan for low
+          0.65: '#00d4aa', // Teal for medium
+          1.0: '#ff4444'   // Red for high
+        }
+      })
+
+      heat.addTo(map)
+      heatLayerRef.current = heat
+    }
+
+    loadHeatmap()
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current)
+      }
+    }
+  }, [map, points])
+
+  return null
+}
 
 interface HeatmapMapProps {
   height?: string
@@ -14,8 +60,8 @@ interface HeatmapMapProps {
 
 const portIcon = divIcon({
   html: `<div style="
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     background: #3b82f6;
     border-radius: 4px;
     border: 2px solid white;
@@ -24,13 +70,15 @@ const portIcon = divIcon({
     align-items: center;
     justify-content: center;
   ">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="1">
-      <path d="M12 2v20M2 12h20M6 6l6-3 6 3"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+      <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3Z"/>
+      <path d="M6 17v4"/>
+      <path d="M18 17v4"/>
     </svg>
   </div>`,
   className: '',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
 })
 
 const zoneIcon = (index: number) => divIcon({
@@ -63,7 +111,7 @@ export function HeatmapMap({ height = '500px', showRoute = false, optimizedRoute
   if (!mounted) {
     return (
       <div 
-        className="bg-muted rounded-lg flex items-center justify-center"
+        className="bg-muted rounded-xl flex items-center justify-center w-full h-[300px] md:h-[500px]"
         style={{ height }}
       >
         <div className="text-muted-foreground">Cargando mapa de calor...</div>
@@ -71,95 +119,82 @@ export function HeatmapMap({ height = '500px', showRoute = false, optimizedRoute
     )
   }
 
+  // Use provided route or default optimal route
+  const routeToShow = optimizedRoute || optimalRoute
+
+  // ZEE style
+  const zeeStyle = {
+    color: '#00d4aa',
+    weight: 2,
+    opacity: 0.6,
+    fillColor: '#00d4aa',
+    fillOpacity: 0.1,
+  }
+
   const sortedZones = [...fishingZones].sort((a, b) => b.probability - a.probability)
 
   return (
     <MapContainer
-      center={[-3.5, -81.5] as LatLngExpression}
+      center={[13.5, -91.5] as LatLngExpression}
       zoom={7}
-      style={{ height, width: '100%', borderRadius: '0.5rem' }}
-      className="z-0"
+      style={{ height, width: '100%' }}
+      className="z-0 rounded-xl overflow-hidden w-full"
     >
+      {/* Dark ocean tiles */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://carto.com">CARTO</a>'
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
 
-      {/* Heatmap circles */}
-      {heatmapPoints.map((point, index) => (
-        <CircleMarker
-          key={index}
-          center={[point.lat, point.lng] as LatLngExpression}
-          radius={30 * point.intensity}
-          pathOptions={{
-            color: 'transparent',
-            fillColor: `rgba(34, 197, 94, ${point.intensity})`,
-            fillOpacity: point.intensity * 0.6,
-          }}
-        />
-      ))}
+      {/* Guatemala ZEE */}
+      <GeoJSON 
+        data={guatemalaZEE.pacific as GeoJSON.Feature} 
+        style={zeeStyle}
+      />
 
-      {/* Fishing zones */}
-      {fishingZones.map((zone) => (
-        <CircleMarker
-          key={zone.id}
-          center={[zone.center.lat, zone.center.lng] as LatLngExpression}
-          radius={zone.radius / 2}
-          pathOptions={{
-            color: `rgba(34, 197, 94, 0.8)`,
-            weight: 2,
-            fillColor: `rgba(34, 197, 94, ${zone.probability / 200})`,
-            fillOpacity: 0.4,
-            dashArray: '5, 5',
-          }}
-        >
-          <Popup>
-            <div className="text-sm min-w-[120px]">
-              <p className="font-semibold">{zone.name}</p>
-              <p className="text-success font-medium">{zone.probability}% probabilidad</p>
-              <p className="text-muted-foreground">Radio: {zone.radius} km</p>
-            </div>
-          </Popup>
-        </CircleMarker>
-      ))}
+      {/* Heatmap Layer */}
+      <HeatmapLayer points={heatmapPoints} />
 
       {/* Optimized route */}
-      {showRoute && optimizedRoute && optimizedRoute.length > 1 && (
+      {showRoute && routeToShow && routeToShow.length > 1 && (
         <>
+          {/* Animated dashed route line */}
           <Polyline
-            positions={optimizedRoute.map(p => [p.lat, p.lng]) as LatLngExpression[]}
+            positions={routeToShow.map(p => [p.lat, p.lng]) as LatLngExpression[]}
             pathOptions={{
               color: '#14b8a6',
               weight: 4,
               opacity: 0.9,
-              dashArray: '10, 5',
+              dashArray: '15, 10',
+              lineCap: 'round',
             }}
           />
           
           {/* Port marker (start/end) */}
           <Marker
-            position={[optimizedRoute[0].lat, optimizedRoute[0].lng] as LatLngExpression}
+            position={[ports.puertoQuetzal.lat, ports.puertoQuetzal.lng] as LatLngExpression}
             icon={portIcon}
           >
             <Popup>
               <div className="text-sm">
-                <p className="font-semibold">Puerto de Guayaquil</p>
+                <p className="font-semibold">Puerto Quetzal</p>
                 <p className="text-muted-foreground">Punto de inicio/fin</p>
               </div>
             </Popup>
           </Marker>
 
-          {/* Zone markers on route */}
-          {optimizedRoute.slice(1, -1).map((point, index) => (
+          {/* Zone markers on route - only show first 3 fishing zones */}
+          {sortedZones.slice(0, 3).map((zone, index) => (
             <Marker
-              key={index}
-              position={[point.lat, point.lng] as LatLngExpression}
+              key={zone.id}
+              position={[zone.center.lat, zone.center.lng] as LatLngExpression}
               icon={zoneIcon(index)}
             >
               <Popup>
                 <div className="text-sm">
-                  <p className="font-semibold">{sortedZones[index]?.name || `Zona ${index + 1}`}</p>
-                  <p className="text-success">{sortedZones[index]?.probability || 0}% probabilidad</p>
+                  <p className="font-semibold">{zone.name}</p>
+                  <p className="text-success">{zone.probability}% probabilidad</p>
+                  <p className="text-muted-foreground text-xs">Pacífico Guatemalteco</p>
                 </div>
               </Popup>
             </Marker>

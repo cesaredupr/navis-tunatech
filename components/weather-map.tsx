@@ -1,22 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet'
-import { type LatLngExpression } from 'leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Marker, GeoJSON } from 'react-leaflet'
+import { type LatLngExpression, divIcon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { weatherZones, guatemalaZEE, ports } from '@/lib/mock-data'
 
 interface WeatherMapProps {
   height?: string
 }
-
-// Simulated weather zones
-const weatherZones = [
-  { id: 1, center: { lat: -2.5, lng: -80.5 }, condition: 'optimal', windSpeed: 12, windDir: 'SW' },
-  { id: 2, center: { lat: -3.0, lng: -81.5 }, condition: 'moderate', windSpeed: 18, windDir: 'S' },
-  { id: 3, center: { lat: -3.5, lng: -82.5 }, condition: 'strong', windSpeed: 25, windDir: 'SE' },
-  { id: 4, center: { lat: -4.0, lng: -81.0 }, condition: 'optimal', windSpeed: 10, windDir: 'W' },
-  { id: 5, center: { lat: -2.8, lng: -82.0 }, condition: 'moderate', windSpeed: 15, windDir: 'SW' },
-]
 
 const conditionColors = {
   optimal: { stroke: '#22c55e', fill: '#22c55e' },
@@ -24,13 +16,55 @@ const conditionColors = {
   strong: { stroke: '#f59e0b', fill: '#f59e0b' },
 }
 
-// Wind direction arrows (simplified as lines)
-const windArrows = [
-  { start: { lat: -2.5, lng: -80.3 }, end: { lat: -2.7, lng: -80.6 } },
-  { start: { lat: -3.0, lng: -81.3 }, end: { lat: -3.3, lng: -81.5 } },
-  { start: { lat: -3.5, lng: -82.3 }, end: { lat: -3.7, lng: -82.6 } },
-  { start: { lat: -4.0, lng: -80.8 }, end: { lat: -4.0, lng: -81.2 } },
-]
+// Port icon
+const portIcon = (name: string) => divIcon({
+  html: `<div style="
+    padding: 4px 8px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #00d4aa;
+    border-radius: 4px;
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  ">${name}</div>`,
+  className: '',
+  iconSize: [100, 24],
+  iconAnchor: [50, 12],
+})
+
+// Wind arrow component
+function WindArrow({ start, direction, speed }: { start: { lat: number; lng: number }; direction: string; speed: number }) {
+  // Calculate end point based on direction
+  const directionAngles: Record<string, number> = {
+    'N': 180, 'S': 0, 'E': 270, 'W': 90,
+    'NE': 225, 'NW': 135, 'SE': 315, 'SW': 45,
+    'SO': 45, // Spanish for SW
+  }
+  
+  const angle = (directionAngles[direction] || 0) * (Math.PI / 180)
+  const length = 0.3 // degrees
+  
+  const end = {
+    lat: start.lat + length * Math.cos(angle),
+    lng: start.lng + length * Math.sin(angle)
+  }
+
+  return (
+    <Polyline
+      positions={[
+        [start.lat, start.lng],
+        [end.lat, end.lng],
+      ] as LatLngExpression[]}
+      pathOptions={{
+        color: '#60a5fa',
+        weight: 2,
+        opacity: 0.8,
+      }}
+    />
+  )
+}
 
 export function WeatherMap({ height = '400px' }: WeatherMapProps) {
   const [mounted, setMounted] = useState(false)
@@ -42,7 +76,7 @@ export function WeatherMap({ height = '400px' }: WeatherMapProps) {
   if (!mounted) {
     return (
       <div 
-        className="bg-muted rounded-lg flex items-center justify-center"
+        className="bg-muted rounded-xl flex items-center justify-center w-full h-[300px] md:h-[500px]"
         style={{ height }}
       >
         <div className="text-muted-foreground">Cargando mapa climático...</div>
@@ -50,16 +84,46 @@ export function WeatherMap({ height = '400px' }: WeatherMapProps) {
     )
   }
 
+  // ZEE style
+  const zeeStyle = {
+    color: '#00d4aa',
+    weight: 1,
+    opacity: 0.4,
+    fillColor: '#00d4aa',
+    fillOpacity: 0.05,
+  }
+
   return (
     <MapContainer
-      center={[-3.2, -81.2] as LatLngExpression}
+      center={[13.5, -91.5] as LatLngExpression}
       zoom={7}
-      style={{ height, width: '100%', borderRadius: '0.5rem' }}
-      className="z-0"
+      style={{ height, width: '100%' }}
+      className="z-0 rounded-xl overflow-hidden w-full"
     >
+      {/* Dark ocean tiles */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://carto.com">CARTO</a>'
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      />
+
+      {/* Guatemala ZEE */}
+      <GeoJSON 
+        data={guatemalaZEE.pacific as GeoJSON.Feature} 
+        style={zeeStyle}
+      />
+
+      {/* Port markers */}
+      <Marker
+        position={[ports.puertoQuetzal.lat, ports.puertoQuetzal.lng] as LatLngExpression}
+        icon={portIcon('Puerto Quetzal')}
+      />
+      <Marker
+        position={[ports.champerico.lat, ports.champerico.lng] as LatLngExpression}
+        icon={portIcon('Champerico')}
+      />
+      <Marker
+        position={[ports.sanJose.lat, ports.sanJose.lng] as LatLngExpression}
+        icon={portIcon('Puerto San José')}
       />
 
       {/* Weather zones */}
@@ -69,7 +133,7 @@ export function WeatherMap({ height = '400px' }: WeatherMapProps) {
           <CircleMarker
             key={zone.id}
             center={[zone.center.lat, zone.center.lng] as LatLngExpression}
-            radius={40}
+            radius={35}
             pathOptions={{
               color: colors.stroke,
               weight: 2,
@@ -78,13 +142,13 @@ export function WeatherMap({ height = '400px' }: WeatherMapProps) {
             }}
           >
             <Popup>
-              <div className="text-sm min-w-[120px]">
-                <p className="font-semibold">Zona {zone.id}</p>
+              <div className="text-sm min-w-[140px]">
+                <p className="font-semibold">{zone.name}</p>
                 <p>Viento: {zone.windSpeed} km/h</p>
                 <p>Dirección: {zone.windDir}</p>
                 <p className={`font-medium ${
-                  zone.condition === 'optimal' ? 'text-success' :
-                  zone.condition === 'moderate' ? 'text-info' : 'text-warning'
+                  zone.condition === 'optimal' ? 'text-green-500' :
+                  zone.condition === 'moderate' ? 'text-blue-500' : 'text-amber-500'
                 }`}>
                   {zone.condition === 'optimal' ? 'Óptimo' :
                    zone.condition === 'moderate' ? 'Moderado' : 'Fuerte'}
@@ -96,22 +160,16 @@ export function WeatherMap({ height = '400px' }: WeatherMapProps) {
       })}
 
       {/* Wind direction arrows */}
-      {windArrows.map((arrow, index) => (
-        <Polyline
-          key={index}
-          positions={[
-            [arrow.start.lat, arrow.start.lng],
-            [arrow.end.lat, arrow.end.lng],
-          ] as LatLngExpression[]}
-          pathOptions={{
-            color: '#60a5fa',
-            weight: 2,
-            opacity: 0.8,
-          }}
+      {weatherZones.map((zone) => (
+        <WindArrow
+          key={`wind-${zone.id}`}
+          start={zone.center}
+          direction={zone.windDir}
+          speed={zone.windSpeed}
         />
       ))}
 
-      {/* Smaller inner circles for visibility */}
+      {/* Inner circles for better visibility */}
       {weatherZones.map((zone) => {
         const colors = conditionColors[zone.condition as keyof typeof conditionColors]
         return (

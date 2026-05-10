@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 const FleetMap = dynamic(() => import('@/components/fleet-map').then(mod => mod.FleetMap), {
   ssr: false,
   loading: () => (
-    <div className="h-[500px] bg-muted rounded-lg flex items-center justify-center">
+    <div className="h-[300px] md:h-[500px] bg-muted rounded-xl flex items-center justify-center w-full">
       <span className="text-muted-foreground">Cargando mapa...</span>
     </div>
   ),
@@ -44,7 +44,7 @@ export default function MonitoreoPage() {
   const [selectedVessel, setSelectedVessel] = useState<Vessel | null>(null)
 
   return (
-    <DashboardLayout title="Monitoreo de Flotilla" subtitle="Seguimiento en tiempo real de embarcaciones">
+    <DashboardLayout title="Monitoreo de Flotilla" subtitle="Zona Económica Exclusiva de Guatemala - Seguimiento en tiempo real">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Map */}
         <Card className="lg:col-span-3 bg-card border-border">
@@ -180,7 +180,7 @@ export default function MonitoreoPage() {
                     <span className="text-xs">Última actualización</span>
                   </div>
                   <p className="text-sm text-foreground">
-                    {new Date(selectedVessel.lastUpdate).toLocaleString('es-EC', {
+                    {new Date(selectedVessel.lastUpdate).toLocaleString('es-GT', {
                       dateStyle: 'short',
                       timeStyle: 'short'
                     })}
@@ -189,6 +189,7 @@ export default function MonitoreoPage() {
 
                 <div className="text-sm text-muted-foreground">
                   <p>Capitán: <span className="text-foreground">{selectedVessel.captain}</span></p>
+                  <p>Puerto Base: <span className="text-foreground">{selectedVessel.port}</span></p>
                   <p>ID: <span className="text-foreground font-mono">{selectedVessel.id}</span></p>
                 </div>
               </CardContent>

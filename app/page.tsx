@@ -20,7 +20,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'rec
 const FleetMap = dynamic(() => import('@/components/fleet-map').then(mod => mod.FleetMap), {
   ssr: false,
   loading: () => (
-    <div className="h-[300px] bg-muted rounded-lg flex items-center justify-center">
+    <div className="h-[300px] md:h-[400px] bg-muted rounded-xl flex items-center justify-center w-full">
       <span className="text-muted-foreground">Cargando mapa...</span>
     </div>
   ),
@@ -32,7 +32,7 @@ const totalCapture = vessels.reduce((acc, v) => acc + v.catch, 0)
 
 export default function DashboardPage() {
   return (
-    <DashboardLayout title="Panel de Control" subtitle="Vista general de la flotilla">
+    <DashboardLayout title="Panel de Control" subtitle="Flota pesquera - Guatemala">
       <div className="space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -135,7 +135,7 @@ export default function DashboardPage() {
                   >
                     <p className="text-sm text-foreground">{alert.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(alert.timestamp).toLocaleTimeString('es-EC', {
+                      {new Date(alert.timestamp).toLocaleTimeString('es-GT', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">Nueva zona detectada</p>
-                      <p className="text-xs text-muted-foreground">Alta probabilidad - Sector B4</p>
+                      <p className="text-xs text-muted-foreground">Alta probabilidad - Pacífico Guatemalteco</p>
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">Hace 45 min</span>
