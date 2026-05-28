@@ -14,8 +14,13 @@ import {
   Clock,
   MapPin,
   ChevronRight,
-  Circle
+  Circle,
+  Database,
+  Server,
+  Route,
+  Cpu
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { vessels, type Vessel } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
@@ -45,7 +50,28 @@ export default function MonitoreoPage() {
 
   return (
     <DashboardLayout title="Monitoreo de Flotilla" subtitle="Zona Económica Exclusiva de Guatemala - Seguimiento en tiempo real">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="space-y-6">
+        {/* Tech Stack Indicators */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+            <Database className="h-3 w-3 mr-1" />
+            PostGIS GPS
+          </Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+            <Server className="h-3 w-3 mr-1" />
+            GeoServer WFS
+          </Badge>
+          <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+            <Route className="h-3 w-3 mr-1" />
+            Valhalla Tracking
+          </Badge>
+          <Badge variant="outline" className="bg-info/10 text-info border-info/30">
+            <Cpu className="h-3 w-3 mr-1" />
+            Real-time
+          </Badge>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Map */}
         <Card className="lg:col-span-3 bg-card border-border">
           <CardHeader className="pb-2">
@@ -195,6 +221,7 @@ export default function MonitoreoPage() {
               </CardContent>
             </Card>
           )}
+          </div>
         </div>
       </div>
     </DashboardLayout>

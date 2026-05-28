@@ -11,8 +11,13 @@ import {
   TrendingUp,
   Activity,
   Anchor,
-  Fish
+  Fish,
+  Database,
+  Server,
+  Route,
+  Cpu
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { vessels, alerts, weatherData, fishingZones, monthlyCapture } from '@/lib/mock-data'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 
@@ -34,6 +39,26 @@ export default function DashboardPage() {
   return (
     <DashboardLayout title="Panel de Control" subtitle="Flota pesquera - Guatemala">
       <div className="space-y-6">
+        {/* Tech Stack Indicators */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+            <Database className="h-3 w-3 mr-1" />
+            PostGIS
+          </Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+            <Server className="h-3 w-3 mr-1" />
+            GeoServer
+          </Badge>
+          <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+            <Route className="h-3 w-3 mr-1" />
+            Valhalla
+          </Badge>
+          <Badge variant="outline" className="bg-info/10 text-info border-info/30">
+            <Cpu className="h-3 w-3 mr-1" />
+            A* Router
+          </Badge>
+        </div>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-card border-border">

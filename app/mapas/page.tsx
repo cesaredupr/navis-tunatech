@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { 
   Map, 
   Target, 
@@ -14,10 +15,15 @@ import {
   TrendingUp,
   MapPin,
   Zap,
-  Anchor
+  Anchor,
+  Database,
+  Server,
+  Cpu
 } from 'lucide-react'
 import { fishingZones, optimalRoute, ports } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { TechStackPanel } from '@/components/tech-stack-panel'
+import { AStarVisualizer } from '@/components/astar-visualizer'
 
 const HeatmapMap = dynamic(() => import('@/components/heatmap-map').then(mod => mod.HeatmapMap), {
   ssr: false,
@@ -38,7 +44,6 @@ const dateFilters = [
 const zoneFilters = [
   { id: 'all', label: 'Todas' },
   { id: 'pacific', label: 'Pacífico Guatemalteco' },
-  { id: 'caribbean', label: 'Mar Caribe' },
   { id: 'zee', label: 'ZEE Guatemala' },
 ]
 
@@ -46,14 +51,44 @@ export default function MapasPage() {
   const [selectedDate, setSelectedDate] = useState('week')
   const [selectedZone, setSelectedZone] = useState('all')
   const [showRouteOptimization, setShowRouteOptimization] = useState(false)
+  const [calculatedRoute, setCalculatedRoute] = useState<{ lat: number; lng: number }[] | null>(null)
+  const [isCalculating, setIsCalculating] = useState(false)
 
-  const handleOptimizeRoute = () => {
+  const handleRouteCalculated = (route: { lat: number; lng: number }[]) => {
+    setCalculatedRoute(route)
     setShowRouteOptimization(true)
+    setIsCalculating(false)
+  }
+
+  const handleCalculationStart = () => {
+    setIsCalculating(true)
+    setShowRouteOptimization(false)
+    setCalculatedRoute(null)
   }
 
   return (
-    <DashboardLayout title="Mapas Inteligentes" subtitle="Zona Económica Exclusiva de Guatemala - Análisis de pesca">
+    <DashboardLayout title="Mapas Inteligentes" subtitle="Zona Económica Exclusiva de Guatemala - Motor Valhalla + A*">
       <div className="space-y-6">
+        {/* Tech badges row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+            <Database className="h-3 w-3 mr-1" />
+            PostGIS Activo
+          </Badge>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+            <Server className="h-3 w-3 mr-1" />
+            GeoServer WMS
+          </Badge>
+          <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+            <Route className="h-3 w-3 mr-1" />
+            Valhalla Router
+          </Badge>
+          <Badge variant="outline" className="bg-info/10 text-info border-info/30">
+            <Cpu className="h-3 w-3 mr-1" />
+            A* Algorithm
+          </Badge>
+        </div>
+
         {/* Filters */}
         <Card className="bg-card border-border">
           <CardContent className="p-4">
@@ -101,77 +136,96 @@ export default function MapasPage() {
                   ))}
                 </div>
               </div>
-
-              <div className="flex-1" />
-
-              <Button 
-                onClick={handleOptimizeRoute}
-                className="bg-accent hover:bg-accent/80 text-accent-foreground"
-              >
-                <Route className="h-4 w-4 mr-2" />
-                Sugerir Ruta Óptima
-              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Heatmap */}
-          <Card className="lg:col-span-3 bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Map className="h-5 w-5 text-primary" />
-                Mapa de Calor - Pacífico Guatemalteco
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HeatmapMap 
-                height="500px" 
-                showRoute={showRouteOptimization}
-                optimizedRoute={showRouteOptimization ? optimalRoute : null}
-              />
-              
-              {/* Legend */}
-              <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
-                <span className="text-xs text-muted-foreground">Probabilidad de captura:</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded" style={{ background: '#00d4ff' }} />
-                  <span className="text-xs text-muted-foreground">Baja</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded" style={{ background: '#00d4aa' }} />
-                  <span className="text-xs text-muted-foreground">Media</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded" style={{ background: '#ff4444' }} />
-                  <span className="text-xs text-muted-foreground">Alta</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Main content - 3 column layout */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Left panel - Tech Stack */}
+          <div className="xl:col-span-3 space-y-4">
+            <TechStackPanel />
+          </div>
 
-          {/* Zone Rankings */}
-          <div className="space-y-4">
-            <Card className="bg-card border-border">
+          {/* Center - Heatmap */}
+          <div className="xl:col-span-6">
+            <Card className="bg-card border-border h-full">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Zonas Prioritarias
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Map className="h-5 w-5 text-primary" />
+                    Mapa de Calor - Pacífico Guatemalteco
+                  </div>
+                  {showRouteOptimization && (
+                    <Badge className="bg-success/20 text-success border-0">
+                      Ruta A* activa
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
+                <HeatmapMap 
+                  height="500px" 
+                  showRoute={showRouteOptimization}
+                  optimizedRoute={calculatedRoute || (showRouteOptimization ? optimalRoute : null)}
+                />
+                
+                {/* Legend */}
+                <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Probabilidad:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded" style={{ background: '#00d4ff' }} />
+                      <span className="text-xs text-muted-foreground">Baja</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded" style={{ background: '#00d4aa' }} />
+                      <span className="text-xs text-muted-foreground">Media</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded" style={{ background: '#ff4444' }} />
+                      <span className="text-xs text-muted-foreground">Alta</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Server className="h-3 w-3" />
+                    Datos: GeoServer WMS/WFS
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right panel - A* Visualizer and Zones */}
+          <div className="xl:col-span-3 space-y-4">
+            <AStarVisualizer 
+              onRouteCalculated={handleRouteCalculated}
+              isCalculating={isCalculating}
+              onCalculationStart={handleCalculationStart}
+            />
+
+            {/* Zone Rankings */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Zonas Prioritarias
+                  <Badge variant="outline" className="text-[10px] ml-auto">PostGIS</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
                 {fishingZones
                   .sort((a, b) => b.probability - a.probability)
+                  .slice(0, 4)
                   .map((zone, index) => (
                     <div
                       key={zone.id}
-                      className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                      className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={cn(
-                            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+                            'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
                             index === 0 ? 'bg-success/20 text-success' :
                             index === 1 ? 'bg-primary/20 text-primary' :
                             index === 2 ? 'bg-accent/20 text-accent' :
@@ -179,19 +233,14 @@ export default function MapasPage() {
                           )}>
                             {index + 1}
                           </span>
-                          <span className="text-sm font-medium text-foreground">{zone.name}</span>
+                          <span className="text-xs font-medium text-foreground">{zone.name}</span>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
                           <TrendingUp className="h-3 w-3 text-success" />
                           <span className="text-xs text-success">{zone.probability}%</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {zone.radius} km radio
-                        </span>
                       </div>
-                      <div className="w-full h-1.5 bg-muted rounded-full mt-2">
+                      <div className="w-full h-1 bg-muted rounded-full mt-2">
                         <div 
                           className="h-full rounded-full bg-success"
                           style={{ width: `${zone.probability}%` }}
@@ -202,69 +251,57 @@ export default function MapasPage() {
               </CardContent>
             </Card>
 
-            {/* Optimized Route Info */}
+            {/* Route Info when active */}
             {showRouteOptimization && (
-              <Card className="bg-card border-border border-accent/50">
+              <Card className="bg-card border-accent/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center gap-2 text-accent">
-                    <Zap className="h-5 w-5" />
-                    Ruta Optimizada
+                  <CardTitle className="text-base flex items-center gap-2 text-accent">
+                    <Zap className="h-4 w-4" />
+                    Ruta Valhalla
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Ruta desde Puerto Quetzal hacia zonas de alta probabilidad en el Pacífico Guatemalteco
+                  <p className="text-xs text-muted-foreground">
+                    Ruta optimizada usando motor Valhalla con heurística A* para máxima eficiencia en aguas guatemaltecas.
                   </p>
                   
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-info/20 text-info flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full bg-info/20 text-info flex items-center justify-center">
                         <Anchor className="h-3 w-3" />
                       </div>
                       <div className="flex-1 h-px bg-border" />
                       <span className="text-xs text-foreground">Puerto Quetzal</span>
                     </div>
                     
-                    {fishingZones.slice(0, 3).map((zone, index) => (
+                    {fishingZones.slice(0, 2).map((zone, index) => (
                       <div key={zone.id} className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-success/20 text-success flex items-center justify-center text-xs font-bold">
+                        <div className="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-bold">
                           {index + 1}
                         </div>
                         <div className="flex-1 h-px bg-border" />
                         <span className="text-xs text-foreground">{zone.name}</span>
                       </div>
                     ))}
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-info/20 text-info flex items-center justify-center">
-                        <Anchor className="h-3 w-3" />
-                      </div>
-                      <div className="flex-1 h-px bg-border" />
-                      <span className="text-xs text-foreground">Regreso a Puerto</span>
-                    </div>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-accent/10 border border-accent/30">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MapPin className="h-4 w-4 text-accent" />
-                      <span className="text-sm font-medium text-accent">Estimaciones</span>
-                    </div>
+                  <div className="p-2 rounded-lg bg-accent/10 border border-accent/30">
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-muted-foreground">Distancia:</span>
-                        <span className="text-foreground ml-1">~120 mn</span>
+                        <span className="text-muted-foreground">Motor:</span>
+                        <span className="text-foreground ml-1">Valhalla</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Tiempo:</span>
-                        <span className="text-foreground ml-1">~18 horas</span>
+                        <span className="text-muted-foreground">Algoritmo:</span>
+                        <span className="text-foreground ml-1">A*</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Combustible:</span>
-                        <span className="text-foreground ml-1">~55%</span>
+                        <span className="text-muted-foreground">Datos:</span>
+                        <span className="text-foreground ml-1">PostGIS</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Eficiencia:</span>
-                        <span className="text-success ml-1">Alta</span>
+                        <span className="text-muted-foreground">Render:</span>
+                        <span className="text-foreground ml-1">GeoServer</span>
                       </div>
                     </div>
                   </div>
