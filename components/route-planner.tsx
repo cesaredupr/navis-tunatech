@@ -194,34 +194,45 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
       let alt1Points: { lat: number; lng: number }[]
       let alt2Points: { lat: number; lng: number }[]
 
+      // Desplaza puntos intermedios ±offsetLat para separar visualmente las rutas
+      const makeVariant = (pts: { lat: number; lng: number }[], offsetLat: number) =>
+        pts.map((p, i) => {
+          if (i === 0 || i === pts.length - 1) return p
+          const factor = Math.sin((i / pts.length) * Math.PI)
+          return { lat: p.lat + offsetLat * factor, lng: p.lng }
+        })
+
       if (isMaritime) {
         // Ruta náutica: 3 variaciones de curva Bezier
         optPoints  = generateMaritimeRoute(origin, destination, 0.35,  0.00, 1.0)  // óptima
         alt1Points = generateMaritimeRoute(origin, destination, 0.55,  0.10, 0.8)  // más al norte
         alt2Points = generateMaritimeRoute(origin, destination, 0.20, -0.08, 1.2)  // costera
       } else {
-        // Ruta terrestre: usar shapes reales de Valhalla u OSRM.
-        // Si el motor no devuelve alternativas, generar variantes visuales
-        // desplazando los puntos de la ruta óptima levemente (no curvas marinas).
-        optPoints = data.shape && data.shape.length > 0
-          ? decodeShape(data.shape)
-          : [origin, destination]
+        // Ruta terrestre: prioridad Valhalla (server) → OSRM (browser) → variante visual
 
-        // Variante visual para alt1: desplaza los puntos intermedios ±0.003° lat
-        const makeVariant = (pts: { lat: number; lng: number }[], offsetLat: number) =>
-          pts.map((p, i) => {
-            if (i === 0 || i === pts.length - 1) return p // origen/destino exactos
-            const factor = Math.sin((i / pts.length) * Math.PI) // curva suave
-            return { lat: p.lat + offsetLat * factor, lng: p.lng }
-          })
+        // 1. Intentar con shapes del servidor (Valhalla)
+        if (data.shape && data.shape.length > 0) {
+          optPoints  = decodeShape(data.shape)
+          alt1Points = data.shape_alt1?.length > 0 ? decodeShape(data.shape_alt1) : optPoints
+          alt2Points = data.shape_alt2?.length > 0 ? decodeShape(data.shape_alt2) : optPoints
+        } else {
+          // 2. Servidor no dio shapes → llamar OSRM directamente desde el browser
+          setCalculationPhase('Consultando OSRM por carreteras reales...')
+          try {
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=polyline6&alternatives=2`
+            const osrmRes = await fetch(osrmUrl, { signal: AbortSignal.timeout(10_000) })
+            const osrmData = osrmRes.ok ? await osrmRes.json() : null
+            const osrmRoutes = osrmData?.routes ?? []
 
-        alt1Points = data.shape_alt1 && data.shape_alt1.length > 0
-          ? decodeShape(data.shape_alt1)
-          : makeVariant(optPoints, 0.008)
-
-        alt2Points = data.shape_alt2 && data.shape_alt2.length > 0
-          ? decodeShape(data.shape_alt2)
-          : makeVariant(optPoints, -0.008)
+            optPoints  = osrmRoutes[0]?.geometry ? decodeShape(osrmRoutes[0].geometry) : [origin, destination]
+            alt1Points = osrmRoutes[1]?.geometry ? decodeShape(osrmRoutes[1].geometry) : makeVariant(optPoints,  0.008)
+            alt2Points = osrmRoutes[2]?.geometry ? decodeShape(osrmRoutes[2].geometry) : makeVariant(optPoints, -0.008)
+          } catch {
+            optPoints  = [origin, destination]
+            alt1Points = makeVariant(optPoints,  0.008)
+            alt2Points = makeVariant(optPoints, -0.008)
+          }
+        }
       }
 
       const d0 = routeLength(optPoints)
