@@ -184,7 +184,16 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
       const res = await fetch('/api/rutas/calcular', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origen: origin.name.split(' (')[0], destino_lat: destination.lat, destino_lon: destination.lng, embarcacion_id: 1, optimizar: 'distancia', tipo: isMaritime ? 'maritima' : 'terrestre' }),
+        body: JSON.stringify({
+          origen: origin.name.split(' (')[0],
+          // Si el origen es una embarcación, enviar sus coordenadas directamente
+          ...(origin.type === 'vessel' ? { origen_lat: origin.lat, origen_lon: origin.lng } : {}),
+          destino_lat: destination.lat,
+          destino_lon: destination.lng,
+          embarcacion_id: origin.type === 'vessel' ? parseInt(origin.id.replace('barco-', '')) : 1,
+          optimizar: 'distancia',
+          tipo: isMaritime ? 'maritima' : 'terrestre',
+        }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)

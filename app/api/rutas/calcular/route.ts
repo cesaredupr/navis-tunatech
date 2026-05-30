@@ -14,6 +14,8 @@ import {
 
 interface RequestBody {
   origen?: string
+  origen_lat?: number   // coordenadas directas cuando el origen es una embarcación
+  origen_lon?: number
   destino_lat: number
   destino_lon: number
   embarcacion_id?: number
@@ -26,6 +28,8 @@ export async function POST(request: Request) {
     const body: RequestBody = await request.json()
     const {
       origen = 'Puerto Quetzal',
+      origen_lat,
+      origen_lon,
       destino_lat,
       destino_lon,
       embarcacion_id = 1,
@@ -33,13 +37,19 @@ export async function POST(request: Request) {
       tipo = 'maritima',
     } = body
 
-    // Validaciones
-    const puertoOrigen = PUERTOS[origen]
-    if (!puertoOrigen) {
-      return NextResponse.json(
-        { error: `Puerto desconocido: "${origen}"`, puertos_disponibles: Object.keys(PUERTOS) },
-        { status: 400 }
-      )
+    // Resolver origen: puerto conocido O coordenadas directas (embarcación)
+    let puertoOrigen: Coordenada
+    if (origen_lat !== undefined && origen_lon !== undefined) {
+      puertoOrigen = { lat: origen_lat, lon: origen_lon, nombre: origen }
+    } else {
+      const found = PUERTOS[origen]
+      if (!found) {
+        return NextResponse.json(
+          { error: `Puerto desconocido: "${origen}"`, puertos_disponibles: Object.keys(PUERTOS) },
+          { status: 400 }
+        )
+      }
+      puertoOrigen = found
     }
     if (destino_lat === undefined || destino_lon === undefined) {
       return NextResponse.json(
