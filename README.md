@@ -1,10 +1,11 @@
 # navis-tunatech
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Esto es un proyecto de [Next.js](https://nextjs.org) generado utilizando [v0](https://v0.app).
 
 ## Built with v0
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+Este repositorio está vinculado a un proyecto de [v0](https://v0.app). Puedes continuar el desarrollo visitando el siguiente enlace. Inicia nuevos chats para realizar cambios y v0 enviará automáticamente los commits a este repositorio. Cada fusión (merge) realizada en la rama `main` se desplegará automáticamente.
+
 
 [Continue working on v0 →](https://v0.app/chat/projects/prj_aiEiBiDC0PbKkfbJn9Dcxf1UXOLy)
 
@@ -22,7 +23,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Puedes comenzar a editar la aplicación modificando el archivo app/page.tsx. La página se actualizará automáticamente cada vez que guardes cambios en el archivo.
 
 ## Learn More
 
