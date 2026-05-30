@@ -184,7 +184,7 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
       const res = await fetch('/api/rutas/calcular', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origen: origin.name.split(' (')[0], destino_lat: destination.lat, destino_lon: destination.lng, embarcacion_id: 1, optimizar: 'distancia' }),
+        body: JSON.stringify({ origen: origin.name.split(' (')[0], destino_lat: destination.lat, destino_lon: destination.lng, embarcacion_id: 1, optimizar: 'distancia', tipo: isMaritime ? 'maritima' : 'terrestre' }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -200,10 +200,12 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
         alt1Points = generateMaritimeRoute(origin, destination, 0.55,  0.10, 0.8)  // más al norte
         alt2Points = generateMaritimeRoute(origin, destination, 0.20, -0.08, 1.2)  // costera
       } else {
-        // Ruta terrestre: Valhalla + 2 variaciones
-        optPoints  = data.shape && data.shape.length > 0 ? decodeShape(data.shape) : generateMaritimeRoute(origin, destination, 0.15, 0, 0.3)
-        alt1Points = generateMaritimeRoute(origin, destination, 0.12,  0.08, 0.4)
-        alt2Points = generateMaritimeRoute(origin, destination, 0.08, -0.06, 0.2)
+        // Ruta terrestre: todas las rutas deben seguir carreteras reales de Valhalla.
+        // Si Valhalla no devuelve shape para una alternativa, NO se dibuja línea falsa —
+        // se reutilizan los puntos de la ruta óptima (misma vía, diferente estilo visual).
+        optPoints  = data.shape      && data.shape.length      > 0 ? decodeShape(data.shape)      : [origin, destination]
+        alt1Points = data.shape_alt1 && data.shape_alt1.length > 0 ? decodeShape(data.shape_alt1) : optPoints
+        alt2Points = data.shape_alt2 && data.shape_alt2.length > 0 ? decodeShape(data.shape_alt2) : optPoints
       }
 
       const d0 = routeLength(optPoints)
@@ -227,7 +229,7 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
           estimatedTime: parseFloat((d1/speed).toFixed(1)),
           fuelEstimate: Math.round(d1 * 45 / 3.785),
           efficiency: 78,
-          motor: 'Alternativa N',
+          motor: isMaritime ? 'A* Náutico' : (data.shape_alt1 ? 'Valhalla A*' : 'Geodésica'),
         },
         {
           id: 'alt2', ...ROUTE_STYLES.alt2,
@@ -235,7 +237,7 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
           estimatedTime: parseFloat((d2/speed).toFixed(1)),
           fuelEstimate: Math.round(d2 * 45 / 3.785),
           efficiency: 65,
-          motor: 'Ruta Costera',
+          motor: isMaritime ? 'Ruta Costera' : (data.shape_alt2 ? 'Valhalla A*' : 'Geodésica'),
         },
       ]
 
