@@ -56,30 +56,25 @@ export async function POST(request: Request) {
 
     const destino: Coordenada = { lat: destino_lat, lon: destino_lon }
 
-    // ── Motor 1: Valhalla (opcional, configurado via VALHALLA_URL) ──────────────
+    // ── Motor 1: Valhalla (local) o OSRM (producción) ────────────────────────
     let shape = ''
     let shapeAlt1 = ''
     let shapeAlt2 = ''
     let valhallaDisponible = false
 
-    if (process.env.VALHALLA_URL) {
-      if (tipo === 'terrestre') {
-        // Para rutas terrestres: 3 peticiones paralelas con costings distintos
-        // → garantiza 3 rutas reales por carretera aunque no haya alternativas geográficas
+    if (tipo === 'terrestre') {
+      // Prioridad 1: Valhalla local (si VALHALLA_URL está configurada)
+      if (process.env.VALHALLA_URL) {
         const locs = [
           { lon: puertoOrigen.lon, lat: puertoOrigen.lat },
           { lon: destino_lon, lat: destino_lat },
         ]
         const baseOpts = { directions_options: { units: 'kilometers' } }
         const requests = [
-          // Ruta más rápida (auto estándar)
           { ...baseOpts, locations: locs, costing: 'auto' },
-          // Ruta más corta en distancia
           { ...baseOpts, locations: locs, costing: 'auto', costing_options: { auto: { shortest: true } } },
-          // Ruta evitando autopistas (vías secundarias)
           { ...baseOpts, locations: locs, costing: 'auto', costing_options: { auto: { use_highways: 0.1, use_tolls: 0.1 } } },
         ]
-
         try {
           const results = await Promise.allSettled(
             requests.map(body =>
@@ -94,14 +89,33 @@ export async function POST(request: Request) {
           const shapes = results.map(r =>
             r.status === 'fulfilled' ? (r.value?.trip?.legs?.[0]?.shape ?? '') : ''
           )
-          shape      = shapes[0]
-          shapeAlt1  = shapes[1]
-          shapeAlt2  = shapes[2]
+          shape     = shapes[0]
+          shapeAlt1 = shapes[1]
+          shapeAlt2 = shapes[2]
           valhallaDisponible = !!shape
-        } catch {
-          // Valhalla no disponible
-        }
-      } else {
+        } catch { /* Valhalla no disponible */ }
+      }
+
+      // Prioridad 2: OSRM público (fallback para producción/Vercel sin Valhalla)
+      // Soporta geometries=polyline6 — mismo formato que Valhalla
+      if (!valhallaDisponible) {
+        try {
+          const o = puertoOrigen
+          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${o.lon},${o.lat};${destino_lon},${destino_lat}?overview=full&geometries=polyline6&alternatives=2`
+          const res = await fetch(osrmUrl, { signal: AbortSignal.timeout(10_000) })
+          if (res.ok) {
+            const data = await res.json()
+            const routes = data.routes ?? []
+            shape     = routes[0]?.geometry ?? ''
+            shapeAlt1 = routes[1]?.geometry ?? ''
+            shapeAlt2 = routes[2]?.geometry ?? ''
+            valhallaDisponible = !!shape
+          }
+        } catch { /* OSRM no disponible */ }
+      }
+    } else {
+      // Rutas marítimas: solo Valhalla si está disponible (no tiene red náutica real de todos modos)
+      if (process.env.VALHALLA_URL) {
         // Para rutas marítimas: una sola petición (Valhalla no tiene red náutica)
         try {
           const valRes = await fetch(`${process.env.VALHALLA_URL}/route`, {
@@ -169,7 +183,9 @@ export async function POST(request: Request) {
         ? { pct: ahorro.pct, campo: ahorro.campo, referencia: ahorro.referencia }
         : null,
 
-      motor: valhallaDisponible ? `Valhalla + ${ruta.motor}` : ruta.motor,
+      motor: valhallaDisponible
+        ? (process.env.VALHALLA_URL ? `Valhalla A*` : `OSRM (carreteras reales)`)
+        : ruta.motor,
       timestamp: new Date().toISOString(),
     })
   } catch (error: unknown) {

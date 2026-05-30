@@ -200,12 +200,28 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
         alt1Points = generateMaritimeRoute(origin, destination, 0.55,  0.10, 0.8)  // más al norte
         alt2Points = generateMaritimeRoute(origin, destination, 0.20, -0.08, 1.2)  // costera
       } else {
-        // Ruta terrestre: todas las rutas deben seguir carreteras reales de Valhalla.
-        // Si Valhalla no devuelve shape para una alternativa, NO se dibuja línea falsa —
-        // se reutilizan los puntos de la ruta óptima (misma vía, diferente estilo visual).
-        optPoints  = data.shape      && data.shape.length      > 0 ? decodeShape(data.shape)      : [origin, destination]
-        alt1Points = data.shape_alt1 && data.shape_alt1.length > 0 ? decodeShape(data.shape_alt1) : optPoints
-        alt2Points = data.shape_alt2 && data.shape_alt2.length > 0 ? decodeShape(data.shape_alt2) : optPoints
+        // Ruta terrestre: usar shapes reales de Valhalla u OSRM.
+        // Si el motor no devuelve alternativas, generar variantes visuales
+        // desplazando los puntos de la ruta óptima levemente (no curvas marinas).
+        optPoints = data.shape && data.shape.length > 0
+          ? decodeShape(data.shape)
+          : [origin, destination]
+
+        // Variante visual para alt1: desplaza los puntos intermedios ±0.003° lat
+        const makeVariant = (pts: { lat: number; lng: number }[], offsetLat: number) =>
+          pts.map((p, i) => {
+            if (i === 0 || i === pts.length - 1) return p // origen/destino exactos
+            const factor = Math.sin((i / pts.length) * Math.PI) // curva suave
+            return { lat: p.lat + offsetLat * factor, lng: p.lng }
+          })
+
+        alt1Points = data.shape_alt1 && data.shape_alt1.length > 0
+          ? decodeShape(data.shape_alt1)
+          : makeVariant(optPoints, 0.008)
+
+        alt2Points = data.shape_alt2 && data.shape_alt2.length > 0
+          ? decodeShape(data.shape_alt2)
+          : makeVariant(optPoints, -0.008)
       }
 
       const d0 = routeLength(optPoints)
