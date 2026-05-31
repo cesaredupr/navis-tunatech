@@ -5,9 +5,10 @@ import dynamic from 'next/dynamic'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Ship, Gauge, Navigation, Fuel, Clock, MapPin, ChevronRight, Circle, Database, Server, Route, Cpu } from 'lucide-react'
+import { Ship, Gauge, Navigation, Clock, MapPin, ChevronRight, Circle, Database, Server, Route, Cpu } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useFlotilla, type Barco } from '@/hooks/useFlotilla'
+import { ConectividadPanel } from '@/components/conectividad-panel'
 import { cn } from '@/lib/utils'
 
 const FleetMap = dynamic(() => import('@/components/fleet-map').then(mod => mod.FleetMap), {
@@ -97,6 +98,9 @@ export default function MonitoreoPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Panel de conectividad satelital */}
+        <ConectividadPanel />
 
         {/* Selected vessel detail */}
         {selectedVessel && (
