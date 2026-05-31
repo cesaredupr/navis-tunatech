@@ -37,12 +37,17 @@ export async function POST(request: Request) {
       tipo = 'maritima',
     } = body
 
-    // Resolver origen: puerto conocido O coordenadas directas (embarcación)
+    // Resolver origen: coordenadas directas tienen prioridad absoluta sobre el nombre.
+    // Esto evita cualquier fallo por mismatch entre el nombre del frontend y el diccionario.
     let puertoOrigen: Coordenada
     if (origen_lat !== undefined && origen_lon !== undefined) {
+      // Siempre usar coordenadas cuando están disponibles (puerto, embarcación o custom)
       puertoOrigen = { lat: origen_lat, lon: origen_lon, nombre: origen }
     } else {
+      // Fallback: buscar por nombre (intentar variantes comunes antes de fallar)
       const found = PUERTOS[origen]
+        ?? PUERTOS[origen.replace('Puerto ', '')]
+        ?? PUERTOS[`Puerto ${origen}`]
       if (!found) {
         return NextResponse.json(
           { error: `Puerto desconocido: "${origen}"`, puertos_disponibles: Object.keys(PUERTOS) },

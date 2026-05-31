@@ -186,8 +186,9 @@ export function RoutePlanner({ onRouteCalculated, onOriginChange, onDestinationC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           origen: origin.name.split(' (')[0],
-          // Si el origen es una embarcación, enviar sus coordenadas directamente
-          ...(origin.type === 'vessel' ? { origen_lat: origin.lat, origen_lon: origin.lng } : {}),
+          // Siempre enviar coordenadas — evita cualquier fallo por mismatch de nombre
+          origen_lat: origin.lat,
+          origen_lon: origin.lng,
           destino_lat: destination.lat,
           destino_lon: destination.lng,
           embarcacion_id: origin.type === 'vessel' ? parseInt(origin.id.replace('barco-', '')) : 1,
