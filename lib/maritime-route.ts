@@ -20,10 +20,12 @@ export interface ResultadoRuta {
 
 // Puertos guatemaltecos del Pacífico con coordenadas reales
 export const PUERTOS: Record<string, Coordenada> = {
-  'Puerto Quetzal': { lat: 13.9198, lon: -90.7969, nombre: 'Puerto Quetzal' },
-  'Champerico':     { lat: 14.3008, lon: -91.9197, nombre: 'Champerico' },
-  'San José':       { lat: 13.9333, lon: -90.8167, nombre: 'San José' },
-  'Iztapa':         { lat: 13.9281, lon: -90.7117, nombre: 'Iztapa' },
+  'Puerto Quetzal':    { lat: 13.9198, lon: -90.7969, nombre: 'Puerto Quetzal' },
+  'Champerico':        { lat: 14.3008, lon: -91.9197, nombre: 'Champerico' },
+  'San José':          { lat: 13.9333, lon: -90.8167, nombre: 'San José' },
+  'Puerto San José':   { lat: 13.9333, lon: -90.8167, nombre: 'Puerto San José' },
+  'Iztapa':            { lat: 13.9281, lon: -90.7117, nombre: 'Iztapa' },
+  'Santo Tomás de Castilla': { lat: 15.6833, lon: -88.6167, nombre: 'Santo Tomás de Castilla' },
 }
 
 // Waypoints costeros para rutas que deben rodear la costa
